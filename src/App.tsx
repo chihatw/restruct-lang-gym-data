@@ -1,34 +1,46 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import './App.css'
+import React, { useEffect, useReducer } from 'react';
+import { AuthState, INITIAL_STATE } from './Model';
+import { ActionTypes, reducer } from './Update';
+import { auth as firebaseAuth } from './repositories/firebase';
+import { Route, Routes } from 'react-router-dom';
+import TopPage from './pages/TopPage';
+import OndokuList from './pages/OndokuList';
 
-function App() {
-  const [count, setCount] = useState(0)
+const App = () => {
+  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const { auth } = state;
+  const { uid, initializing } = auth;
+
+  // 認証判定
+  useEffect(() => {
+    const unsubscribe = firebaseAuth.onAuthStateChanged(async (user) => {
+      let _uid = user?.uid || '';
+      if (uid !== _uid || initializing) {
+        const auth: AuthState = {
+          uid: _uid,
+          initializing: false,
+        };
+        dispatch({
+          type: ActionTypes.setAuth,
+          payload: _uid,
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [dispatch, uid, initializing]);
 
   return (
-    <div className="App">
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </div>
-  )
-}
+    <Routes>
+      <Route path='/' element={<TopPage state={state} dispatch={dispatch} />} />
+      <Route
+        path='/ondokus'
+        element={<OndokuList state={state} dispatch={dispatch} />}
+      />
+    </Routes>
+  );
+};
 
-export default App
+export default App;
